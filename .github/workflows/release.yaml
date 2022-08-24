@@ -19,4 +19,4 @@ jobs:
           project_path: "./client"
           binary_name: "agent-p"
           ldflags: "-s -w"
-          extra_files: LICENSE Readme.md
+          extra_files: ../LICENSE ../Readme.md
