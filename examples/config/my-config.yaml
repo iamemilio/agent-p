@@ -1,0 +1,17 @@
+version: 0.1.0
+new-relic-server: production
+jobs:
+    - name: example
+      app:
+        image: quay.io/emiliogarcia_1/example-app:latest
+        service-port: 8000
+        environment-variables:
+            EXAMPLE_KEY: EXAMPLE_VALUE
+      traffic-driver:
+        service-endpoint: /
+        image: quay.io/emiliogarcia_1/traffic-driver:latest
+        startup-delay: 20
+        traffic:
+            duration: 100
+            requests-per-second: 100
+            concurrent-requests: 3
