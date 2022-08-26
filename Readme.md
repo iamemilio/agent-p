@@ -35,12 +35,12 @@ debug: false
 jobs:
   - name: example
     app:
-        image: "quay.io/emiliogarcia_1/example-app:latest"
+        image: YOUR APP CONTAINER IMAGE
         service-port: 8000
         environment-variables:
             EXAMPLE_KEY: EXAMPLE_VALUE
     traffic-driver:
-        service-endpoint: /custom_events
+        service-endpoint: /your_endpoint
         image: quay.io/emiliogarcia_1/traffic-driver:latest
         startup-delay: 20  # time in seconds the traffic driver waits to send traffic to the application
         traffic:
@@ -49,7 +49,9 @@ jobs:
             concurrent-requests: 3  # number of concurrent requests sent each time a request is sent
 ```
 
-Relpace the `app.image` with the location of your image in a public container registry. The example shows a working golang example image, `"quay.io/emiliogarcia_1/example-app:latest"`. When you generate your boilerplate config file, it will say, `"YOUR APP CONTAINER IMAGE"`. Make sure you replace this.
+You **must** replace the following values with your own:
+- `app.image`: the location of your image in a public container registry; example: `"quay.io/emiliogarcia_1/example-app:latest"`
+- `traffic-driver.service-endpoint`: the http endpoint the traffic driver will hit; example: "/"
 
 **NOTE** that the total number of requests per second is traffic.requests-per-second * traffic.concurrent-requests.
 
