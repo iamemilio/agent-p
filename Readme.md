@@ -18,11 +18,13 @@ tar -xvf  agent-p-v0.1.3-darwin-amd64.tar
 
 Until I figure out how to get trusted by Apple, you will not be able to execute this binary from your path. You will have to copy the binary into a directory you are working in, then execute it locally.
 
-``sh
+```sh
 mkdir exampleWorkspace
 cp agent-p exampleWorkspace
 cd exampleWorkspace
 ./agent-p help
+```
+
 ## Workflow
 
 A core part of what makes this application easy to work with is the workflow for developing, testing, and implementing a test job for a given use case.
