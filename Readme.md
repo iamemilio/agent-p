@@ -4,6 +4,25 @@ The easiest way to observe the performance impact of a language agent over time 
 
 The goal of this app make it as easy as possible to measure the performance over time impact that a language agent has on an application with traffic driven to it. It allows you to easily create batches of jobs that can test a specific use case or performance profile.
 
+## Dependencies
+
+Make sure you have the latest stable version of docker installed on your system.
+
+## Installation
+
+There are [pre-compiled releases](https://github.com/iamemilio/agent-p/releases) for targeted architectures and operating systems available for download. Once downloaded, all you need to do is untar them.
+
+```sh
+tar -xvf  agent-p-v0.1.3-darwin-amd64.tar
+```
+
+Until I figure out how to get trusted by Apple, you will not be able to execute this binary from your path. You will have to copy the binary into a directory you are working in, then execute it locally.
+
+``sh
+mkdir exampleWorkspace
+cp agent-p exampleWorkspace
+cd exampleWorkspace
+./agent-p help
 ## Workflow
 
 A core part of what makes this application easy to work with is the workflow for developing, testing, and implementing a test job for a given use case.
