@@ -1,6 +1,6 @@
 module agent-p
 
-go 1.19
+go 1.18
 
 require (
 	github.com/docker/docker v20.10.17+incompatible
