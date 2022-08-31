@@ -10,24 +10,15 @@ Make sure you have the latest stable version of docker installed on your system.
 
 ## Installation
 
-There are [pre-compiled releases](https://github.com/iamemilio/agent-p/releases) for targeted architectures and operating systems available for download. Once downloaded, all you need to do is untar them.
-
-```sh
-tar -xvf  agent-p-v0.1.3-darwin-amd64.tar
-```
-
-Until I figure out how to get trusted by Apple, you will not be able to execute this binary from your path. You will have to copy the binary into a directory you are working in, then execute it locally.
-
-```sh
-mkdir exampleWorkspace
-cp agent-p exampleWorkspace
-cd exampleWorkspace
-./agent-p help
-```
+There are [pre-compiled releases](https://github.com/iamemilio/agent-p/releases) for targeted architectures and operating systems available for download. Make sure that you download with safari, since this app is not currently recognized by macos. Then, find the downloaded binary in finder and unzip it. Once unzipped, you must control click it, then press open. Macos will prompt you about whether you trust the application and want to open it, if you say yes you will be able to run the executable. Then, you can put the binary in any vaild bin directory!
 
 ## Workflow
 
-A core part of what makes this application easy to work with is the workflow for developing, testing, and implementing a test job for a given use case.
+A core part of what makes this application easy to work with is the workflow for developing, testing, and implementing a test job for a given use case. The first thing you should do is create a workspace for the content you develop for a specific batch of performance tests.
+
+```sh
+mkdir myTestDirectory
+```
 
 ### Making an Application
 
