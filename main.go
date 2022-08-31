@@ -1,9 +1,9 @@
 package main
 
 import (
-	"agent-p/app"
-	"agent-p/cmd"
-	"agent-p/handle"
+	"agent-p/pkg/app"
+	"agent-p/pkg/cmd"
+	"agent-p/pkg/handle"
 	"errors"
 
 	"os"
