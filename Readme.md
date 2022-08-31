@@ -18,6 +18,7 @@ A core part of what makes this application easy to work with is the workflow for
 
 ```sh
 mkdir myTestDirectory
+cd myTestDirectory
 ```
 
 ### Making an Application
