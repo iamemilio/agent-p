@@ -1,4 +1,4 @@
-module agent-p
+module github.com/iamemilio/client/agent-p
 
 go 1.18
 
