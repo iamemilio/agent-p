@@ -86,6 +86,36 @@ The traffic-driver config allows you to tune the traffic sent to the server. It 
 | traffic.requests-per-second | uint | the number of requests the driver will make to the service endpoint per second |
 | traffic.concurrent-requests | uint | the number of concurrent requests that are allowed to be sent to the server |
 
+
+#### New Relic Server
+
+The new-relic-server controls which data collection endpoint to send your applications data to. You can select between `production`, `staging`, or `eu`. Make sure that the New Relic license key you provide agent-p works for that endpoint.
+
+```yaml
+version: 0.1.0
+new-relic-server: staging
+debug: false
+jobs:
+```
+
+#### New Relic License Key
+
+If you are comfortable writing the key in the config file, then you can add it in the same section as the `new-relic-server`:
+
+```yaml
+version: 0.1.0
+new-relic-server: production
+new-relic-license-key: <your key here>
+debug: false
+jobs:
+```
+
+Otherwise, agent-p will look for the license key in your environment in the variable `NEW_RELIC_LICENSE_KEY`.
+
+```sh
+export NEW_RELIC_LICENSE_KEY=<your key here>
+```
+
 ### Running
 
 Once your `config.yaml` is ready, all you need to do is run the command:
