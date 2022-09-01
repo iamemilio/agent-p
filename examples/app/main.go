@@ -1,5 +1,6 @@
 // Copyright 2020 New Relic Corporation. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
+// Code taken from https://github.com/newrelic/go-agent/blob/master/v3/examples/server/main.go
 
 package main
 
