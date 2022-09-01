@@ -71,7 +71,7 @@ jobs:
 ```
 
 You **must** replace the following values with your own:
-- `app.image`: the location of your image in a public container registry; example: `"quay.io/emiliogarcia_1/example-app:latest"`
+- `app.image`: the location of your image in a container registry; example: `"quay.io/emiliogarcia_1/example-app:latest"`
 - `traffic-driver.service-endpoint`: the http endpoint the traffic driver will hit; example: "/"
 
 **NOTE** that the total number of requests per second is traffic.requests-per-second * traffic.concurrent-requests.
