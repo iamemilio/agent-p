@@ -1,4 +1,4 @@
-# Agent-P
+# Agent Performance
 
 The easiest way to observe the performance impact of a language agent over time in the tri-state area!
 
