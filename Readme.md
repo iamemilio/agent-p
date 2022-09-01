@@ -105,3 +105,7 @@ The following tools can help you troubleshoot:
 - the `--debug` flag will print a verbose output
 - calling `agent-p create jobs` creates jobs without running them, allowing you to verify any issues with the docker-compose at your own pace
 - running `agent-p run --no-clean` will leave stopped docker containers on your system, giving you access to their logs
+
+## Output
+
+Each job will result in a `data.csv` file being created in that job directory. It is titled, and should be importable into any software that can handle csv data: excel, sheets, tableau, pandas, etc. This tool collects cpu usage as a percentage of the total available cpu time, memory usage in Kb, disk write volume in Mb, and network writes in Kb. We do not collect network reads due to traffic from the traffic driver being sent over the network, making it unreliable to measure. Data is collected every second, and outliers are not removed from the data pool. If you want to generate summary statistics, it's recommended that you remove outliers first. Due to the non-random collection interval, this data may not be well suited for making hypothesis based on summary statistics.
