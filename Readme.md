@@ -10,7 +10,9 @@ Make sure you have the latest stable version of docker installed on your system.
 
 ## Installation
 
-There are [pre-compiled releases](https://github.com/iamemilio/agent-p/releases) for targeted architectures and operating systems available for download. Make sure that you download with safari, since this app is not currently recognized by macos. Then, find the downloaded binary in finder and unzip it. Once unzipped, you must control click it, then press open. Macos will prompt you about whether you trust the application and want to open it, if you say yes you will be able to run the executable. Then, you can put the binary in any vaild bin directory and execute it as a native shell command.
+There are [pre-compiled releases](https://github.com/iamemilio/agent-p/releases) for targeted architectures and operating systems available for download. 
+
+If you are using Mac OS, make sure that you download the appropriate darwin binary with safari. If you have an M series Mac, then download an arm64 variant, otherwise for intel Macs download amd64. Because this binary is not recognized by the Apple store you will have to find the downloaded binary in finder and unzip it. Once unzipped, you must control click it, then press open. Mac OS will prompt you about whether you trust the application and want to open it, if you say yes you will be able to run the executable without a prompt. Then, you can put the binary in any vaild bin directory and execute it as a native shell command.
 
 ## Workflow
 
