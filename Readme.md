@@ -33,7 +33,7 @@ This tool should work with any containerized application with an http server lis
 
 Additional custom environment variables can be injected into the application container in the `environment-variables` list for an application in the config file. We will cover that later.
 
-Once you verify that your application can run in a container, push it to any publicly accessible container image registry. Make sure that the image is public and can be pulled without credentials, and be sure not to put any sensitive data inside of it. Doing things this way allows you to run these tests on any system of your choice, as long as it has the client and a config file.
+Once you verify that your application can run in a container, push it to any publicly accessible container image registry if you want to re-use this image or run these tests on any other system. Make sure that the image does not expose any sensitive data if you push it to a public repository. Otherwise, agent-p will always use the version of the specified image the exists on the local image registry.
 
 #### Private Images
 
