@@ -1,8 +1,6 @@
 package app
 
 import (
-	"agent-p/handle"
-	"fmt"
 	"os"
 
 	"github.com/rs/zerolog/log"
@@ -22,39 +20,37 @@ type Service struct {
 }
 
 // WriteFile writes a docker compose file to your local disk
-func (compose *DockerCompose) WriteFile(name string) error {
-	log.Debug().Msgf("Writing Docker Compose File for Job \"%s\"...", name)
+func (compose *DockerCompose) WriteFile(name, workspace string) (JobDirectory, error) {
 	yaml, err := yaml.Marshal(compose)
 	if err != nil {
-		handle.InternalError(err)
-	}
-
-	// Make jobs Dir
-	err = mkdirIfNotExists("./", JobsDir)
-	if err != nil {
-		handle.InternalError(err)
+		return "", err
 	}
 
 	// Make directory for job
-	err = mkdirIfNotExists(fmt.Sprintf("./%s/", JobsDir), name)
+	jobDir, err := CreateJobDirectory(workspace, name)
 	if err != nil {
-		handle.InternalError(err)
+		return "", err
 	}
 
+	log.Debug().Msgf("created directory %s", jobDir)
+
 	// Overwrite files that already exist
-	composeFile := fmt.Sprintf("./%s/%s/docker-compose.yaml", JobsDir, name)
+	composeFile := jobDir.GetCompose()
 	f, err := os.Create(composeFile)
 	if err != nil {
-		handle.InternalError(err)
+		return "", err
 	}
+
+	log.Debug().Msgf("created docker compose file: %s", composeFile)
+	log.Debug().Msg("writing marshalled content to compose file")
 
 	_, err = f.Write(yaml)
 	if err != nil {
-		handle.InternalError(err)
+		return "", err
 	}
 
 	f.Close()
 
-	log.Debug().Msgf("compose file for job \"%s\" written: %s", name, composeFile)
-	return nil
+	log.Debug().Msgf("content written to compose file successfully")
+	return jobDir, nil
 }

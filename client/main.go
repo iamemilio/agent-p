@@ -38,8 +38,6 @@ func main() {
 		log.Logger = log.Level(zerolog.DebugLevel)
 	}
 
-	log.Debug().Msgf("Inputs: %+v", inputs)
-
 	// Main Body
 	if inputs.Create != nil {
 		configFile := inputs.Create.Config

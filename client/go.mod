@@ -6,7 +6,6 @@ require (
 	github.com/docker/docker v20.10.17+incompatible
 	github.com/rs/zerolog v1.27.0
 	github.com/spf13/cobra v1.5.0
-	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.0
 )
 

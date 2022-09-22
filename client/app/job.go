@@ -2,12 +2,13 @@ package app
 
 import (
 	"agent-p/handle"
+	"io"
+	"math/rand"
 
 	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"time"
@@ -23,14 +24,18 @@ const (
 )
 
 type Job struct {
-	Name            string
-	ExpectedRunTime int
+	SummaryStatisticsData  bool
+	Name                   string
+	Directory              JobDirectory
+	ExpectedRunTime        time.Duration
+	LoadDuration           time.Duration
+	LoadDelay              time.Duration
+	DataCollectionInterval time.Duration
 }
 
 const (
-	JobsDir           = "jobs"
-	DataDir           = "data"
-	DefaultSampleRate = 1
+	JobsDir = "jobs"
+	DataDir = "data"
 )
 
 type Batch []Job
@@ -48,26 +53,28 @@ func (b Batch) Run(clean bool) {
 
 func (c *RunConfig) Clean() {
 	for _, run := range c.Runs {
-		doClean(run.Name)
+		jobDir := ToLocalJobDirectory(run.Name)
+		doClean(jobDir)
 	}
 }
 
 func (j *Job) Clean() {
-	doClean(j.Name)
+	doClean(j.Directory)
 }
 
-func doClean(name string) {
-	cmd := exec.Command("docker", "compose", "-f", fmt.Sprintf("%s/%s/docker-compose.yaml", JobsDir, name), "down")
+func doClean(j JobDirectory) {
+	cmd := exec.Command("docker", "compose", "-f", j.GetCompose(), "down")
 	log.Debug().Msg(cmd.String())
 	err := cmd.Run()
 	if err != nil {
 		handle.DockerComposeError(cmd.String())
 	}
-	log.Info().Msgf("Job %s cleaned", name)
+	log.Info().Msgf("cleaned up docker containers")
 }
 
 func (j *Job) run() {
-	cmd := exec.Command("docker", "compose", "-f", fmt.Sprintf("%s/%s/docker-compose.yaml", JobsDir, j.Name), "up", "-d")
+	log.Debug().Msgf("running job %+v", j)
+	cmd := exec.Command("docker", "compose", "-f", j.Directory.GetCompose(), "up", "-d")
 	log.Debug().Msgf("running job %s: %s", j.Name, cmd.String())
 	err := cmd.Run()
 	if err != nil {
@@ -77,11 +84,11 @@ func (j *Job) run() {
 
 	appID, driverID := j.getContainerIDs()
 	log.Debug().Msgf("app: %s\ndriver: %s", appID, driverID)
-	j.Monitor(DefaultSampleRate, appID, driverID)
+	j.Monitor(appID, driverID)
 }
 
 func (j *Job) getContainerIDs() (appID, driverID string) {
-	cmd := exec.Command("docker", "compose", "-f", fmt.Sprintf("%s/%s/docker-compose.yaml", JobsDir, j.Name), "ps", "--format", "json")
+	cmd := exec.Command("docker", "compose", "-f", j.Directory.GetCompose(), "ps", "--format", "json")
 	log.Debug().Msgf("getting container ID's for job %s: %s", j.Name, cmd.String())
 	out, err := cmd.Output()
 	if err != nil {
@@ -97,14 +104,14 @@ func (j *Job) getContainerIDs() (appID, driverID string) {
 	return containers[0].ID, containers[1].ID
 }
 
-func (j *Job) Monitor(collectionIntervalSecond int, appID, driverID string) {
+func (j *Job) Monitor(appID, driverID string) {
 	log.Debug().Msgf("monitoring and gathering data for job \"%s\"...", j.Name)
 	cli, err := client.NewClientWithOpts()
 	if err != nil {
 		handle.InternalError(err)
 	}
 
-	fileName := fmt.Sprintf("./%s/%s/data.csv", JobsDir, j.Name)
+	fileName := j.Directory.GetDataFile()
 	dataFile, err := os.Create(fileName)
 	if err != nil {
 		handle.InternalError(err)
@@ -112,35 +119,20 @@ func (j *Job) Monitor(collectionIntervalSecond int, appID, driverID string) {
 	defer dataFile.Close()
 
 	data := bufio.NewWriter(dataFile)
-	data.WriteString("Time, CPU utilization %, Memory Usage Mb, Disk Write Kb, Outbound Network Traffic Kb per " + fmt.Sprint(collectionIntervalSecond) + "s\n")
+	writeTitle(data, j)
+	data.WriteString("Timestamp, CPU utilization %, Memory Usage Mb, Disk Write Kb, Outbound Network Traffic Kb\n")
 
-	var previousTx, previousCPU, previousSystem float64
+	trafficDriverFinished := make(chan bool)
+	quitChan := make(chan bool)
+	go watchContainer(cli, driverID, j.ExpectedRunTime+20*time.Second, trafficDriverFinished, quitChan)
 
-	driverNotRunning := false
-	ticker := time.NewTicker(time.Duration(collectionIntervalSecond) * time.Second)
-	go watchContainer(cli, driverID, j.ExpectedRunTime+20, &driverNotRunning)
-	for range ticker.C {
-		stats := getStats(cli, appID)
-		cpuPercent := calculateCPUPercentUnix(previousCPU, previousSystem, &stats)
-		previousCPU = float64(stats.CPUStats.CPUUsage.TotalUsage)
-		previousSystem = float64(stats.CPUStats.SystemUsage)
-		_, tx := calculateNetwork(stats.Networks)
-		txDiff := tx - previousTx
-		previousTx = tx
-
-		data.WriteString(time.Now().String())
-		data.WriteByte(',')
-		data.WriteString(fmt.Sprintf("%.3f,", cpuPercent))
-		data.WriteString(fmt.Sprintf("%.3f,", (float64(stats.MemoryStats.Usage)/1024)/1024))
-		data.WriteString(fmt.Sprintf("%.3f,", float64(stats.StorageStats.WriteSizeBytes)/1024))
-		data.WriteString(fmt.Sprintf("%.3f", txDiff/1024))
-		data.WriteString("\n")
-		if driverNotRunning {
-			break
-		}
+	if j.SummaryStatisticsData {
+		j.collectSummaryStatisticsData(data, cli, appID, trafficDriverFinished, quitChan)
+	} else {
+		j.collectTimeseriesData(data, cli, appID, trafficDriverFinished, quitChan)
 	}
 
-	log.Debug().Msgf("writing captued data to file: %s...", dataFile)
+	log.Debug().Msgf("writing captued data to file: %s...", dataFile.Name())
 	err = data.Flush()
 	if err != nil {
 		handle.InternalError(err)
@@ -150,6 +142,144 @@ func (j *Job) Monitor(collectionIntervalSecond int, appID, driverID string) {
 
 	timeout := time.Millisecond * 300
 	cli.ContainerStop(context.Background(), appID, &timeout)
+}
+
+func watchContainer(client *client.Client, containerID string, timeout time.Duration, finishedWatching chan bool, quitChan chan bool) {
+	log.Debug().Msgf("waiting for container %s to exit...", containerID)
+	bC, _ := client.ContainerWait(context.Background(), containerID, container.WaitConditionNotRunning)
+	select {
+	case <-bC:
+		log.Debug().Msg("driver container stopped. Writing to finishedWatching chan...")
+		finishedWatching <- true
+		return
+	case <-quitChan:
+		log.Debug().Msgf("quit signal received. Stopped watching container %s", containerID)
+		return
+	}
+}
+
+type statSnapshot struct {
+	Tx, CPU, System float64
+}
+
+func (j *Job) collectTimeseriesData(data *bufio.Writer, cli *client.Client, appID string, trafficDriverFinished chan bool, quit chan bool) {
+	previous := statSnapshot{}
+	ticker := time.NewTicker(j.DataCollectionInterval)
+	for {
+		select {
+		case <-ticker.C:
+			stats := getStats(cli, appID)
+			previous = writeData(data, &stats, &previous)
+		case <-trafficDriverFinished:
+			log.Debug().Msg("recieved message that traffic driver has stopped")
+			return
+		case <-time.After(j.LoadDuration):
+			log.Debug().Msg("timeout reached, sending quit signal to watcher...")
+			quit <- true
+			return
+		}
+	}
+}
+
+// data is random and only collected during periods of application load
+func (j *Job) collectSummaryStatisticsData(data *bufio.Writer, cli *client.Client, appID string, trafficDriverFinished chan bool, quit chan bool) {
+	previous := statSnapshot{}
+
+	// wait 5 seconds to avoid utilization spikes due to surge of traffic
+	collectionDelay := 5 * time.Second
+	log.Debug().Msgf("waiting %s to avoid usage spikes caused by a surge in traffic...", collectionDelay.String())
+	time.Sleep(j.LoadDelay + collectionDelay)
+
+	log.Debug().Msgf("collecting summary statistics data randomly within a %s interval...", j.DataCollectionInterval.String())
+	// stop collecting 2 second before traffic stops being sent just to be defensive
+	timeoutPeriod := j.LoadDuration - (collectionDelay + 3*time.Second)
+	log.Debug().Msgf("this collection process will time out in %s...", timeoutPeriod.String())
+
+	statsChan := make(chan types.StatsJSON, 1)
+	go getStatsRandomlyWithinInterval(j.DataCollectionInterval, cli, statsChan, appID)
+	for {
+		select {
+		case <-trafficDriverFinished:
+			log.Debug().Msg("recieved message that traffic driver has stopped")
+			return
+		case <-time.After(timeoutPeriod):
+			log.Debug().Msg("timeout reached, sending quit signal to watcher...")
+			quit <- true
+			return
+		case stats := <-statsChan:
+			previous = writeData(data, &stats, &previous)
+			go getStatsRandomlyWithinInterval(j.DataCollectionInterval, cli, statsChan, appID)
+		}
+	}
+}
+
+func getStats(cli *client.Client, containerName string) types.StatsJSON {
+	statsReader, err := cli.ContainerStatsOneShot(context.TODO(), containerName)
+	if err != nil {
+		handle.InternalError(err)
+	}
+
+	defer statsReader.Body.Close()
+
+	stats := types.StatsJSON{}
+	buf, err := io.ReadAll(statsReader.Body)
+	if err != nil {
+		handle.InternalError(err)
+	}
+	err = json.Unmarshal(buf, &stats)
+	if err != nil {
+		handle.InternalError(err)
+	}
+
+	return stats
+}
+
+func getStatsRandomlyWithinInterval(interval time.Duration, cli *client.Client, statsChan chan types.StatsJSON, appID string) {
+	stats := getStats(cli, appID)
+	statsChan <- stats
+
+	var sleepMillis int
+	if interval == time.Second {
+		// Try to prevent more than two or three checks per second to avoid straining the system
+		sleepMillis = rand.Intn(700) + 300
+	} else {
+		sleepMillis = rand.Intn(int(interval.Milliseconds()))
+	}
+
+	sleepTime := time.Duration(sleepMillis) * time.Millisecond
+	time.Sleep(sleepTime)
+}
+
+func writeTitle(data *bufio.Writer, j *Job) {
+	if j.SummaryStatisticsData {
+		data.WriteString("Random Summary Statistics")
+	} else {
+		data.WriteString("Timeseries")
+	}
+	data.WriteString(" Data Measuring the Perfomance of Job ")
+	data.WriteString(j.Name)
+	data.WriteString("\n")
+}
+
+func writeData(data *bufio.Writer, stats *types.StatsJSON, previous *statSnapshot) statSnapshot {
+	cpuPercent := calculateCPUPercentUnix(previous.CPU, previous.System, stats)
+	previousCPU := float64(stats.CPUStats.CPUUsage.TotalUsage)
+	previousSystem := float64(stats.CPUStats.SystemUsage)
+	_, tx := calculateNetwork(stats.Networks)
+	txDiff := tx - previous.Tx
+	previousTx := tx
+
+	data.WriteString(time.Now().String())
+	data.WriteByte(',')
+	data.WriteString(fmt.Sprintf("%.3f,", cpuPercent))
+	data.WriteString(fmt.Sprintf("%.3f,", (float64(stats.MemoryStats.Usage)/1024)/1024))
+	data.WriteString(fmt.Sprintf("%.3f,", float64(stats.StorageStats.WriteSizeBytes)/1024))
+	data.WriteString(fmt.Sprintf("%.3f", txDiff/1024))
+	data.WriteString("\n")
+
+	return statSnapshot{
+		previousTx, previousCPU, previousSystem,
+	}
 }
 
 func calculateCPUPercentUnix(previousCPU, previousSystem float64, v *types.StatsJSON) float64 {
@@ -176,52 +306,4 @@ func calculateNetwork(network map[string]types.NetworkStats) (float64, float64) 
 		tx += float64(v.TxBytes)
 	}
 	return rx, tx
-}
-
-func watchContainer(client *client.Client, containerID string, timeout int, finished *bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(timeout))
-	defer cancel()
-
-	log.Debug().Msgf("waiting for container %s to exit...", containerID)
-	bC, _ := client.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
-	<-bC
-	*finished = true
-}
-
-func getStats(cli *client.Client, containerName string) types.StatsJSON {
-	statsReader, err := cli.ContainerStatsOneShot(context.TODO(), containerName)
-	if err != nil {
-		handle.InternalError(err)
-	}
-
-	defer statsReader.Body.Close()
-
-	stats := types.StatsJSON{}
-	buf, err := ioutil.ReadAll(statsReader.Body)
-	if err != nil {
-		handle.InternalError(err)
-	}
-	err = json.Unmarshal(buf, &stats)
-	if err != nil {
-		handle.InternalError(err)
-	}
-
-	return stats
-}
-
-func mkdirIfNotExists(path, name string) error {
-	files, err := ioutil.ReadDir(path)
-	if err != nil {
-		handle.InternalError(err)
-	}
-
-	for _, file := range files {
-		if file.Name() == name && file.IsDir() {
-			log.Debug().Msgf("file \"%s\" exists, and will not be created...", path+name)
-			return nil
-		}
-	}
-
-	log.Debug().Msgf("creating file \"%s\"...", path+name)
-	return os.Mkdir(path+name, os.ModePerm)
 }
