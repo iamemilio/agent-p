@@ -80,7 +80,7 @@ jobs:
         image: YOUR APP CONTAINER IMAGE
         service-port: 8000
       traffic-driver:
-        service-endpoint: /background
+        service-endpoint: /your_endpoint
         image: quay.io/emiliogarcia_1/traffic-driver:latest
         startup-delay: 20s
         traffic:
