@@ -45,31 +45,48 @@ docker login
 
 ### Making a Config
 
-Once you have an application ready, lets make a config. You can generate a boilerplate config file by calling `agent-p create config` and it will create a file named `config.yaml` in your working directory that looks like this.
+Once you have an application ready, lets make a config. You can generate a boilerplate config file by calling `agent-p create config` and it will create a file named `config.yaml` in your working directory that looks similar to this.
 
 ```sh
 agent-p create config
 ```
 
 ```yaml
-version: 0.1.0
+version: 0.2.0
 new-relic-server: production
 debug: false
 jobs:
-  - name: example
+  - name: time series example
     app:
         image: YOUR APP CONTAINER IMAGE
         service-port: 8000
         environment-variables:
             EXAMPLE_KEY: EXAMPLE_VALUE
+    data:
+        collection-interval: 1s
     traffic-driver:
         service-endpoint: /your_endpoint
         image: quay.io/emiliogarcia_1/traffic-driver:latest
-        startup-delay: 20  # time in seconds the traffic driver waits to send traffic to the application
+        startup-delay: 20s  # time in seconds the traffic driver waits to send traffic to the application
         traffic:
-            duration: 120   # time in seconds the traffic driver runs
+            duration: 5m   # time the traffic driver runs
             requests-per-second: 100  # number of requests sent to the server per second
             concurrent-requests: 3  # number of concurrent requests sent each time a request is sent
+   - name: summary statistics example
+      data:
+        collection-interval: 5s
+        summary-statistics: true # collect data randomly within the collection interval
+      app:
+        image: YOUR APP CONTAINER IMAGE
+        service-port: 8000
+      traffic-driver:
+        service-endpoint: /background
+        image: quay.io/emiliogarcia_1/traffic-driver:latest
+        startup-delay: 20s
+        traffic:
+            duration: 5m
+            requests-per-second: 100
+            concurrent-requests: 3
 ```
 
 You **must** replace the following values with your own:
@@ -112,7 +129,7 @@ debug: false
 jobs:
 ```
 
-Otherwise, agent-p will look for the license key in your environment in the variable `NEW_RELIC_LICENSE_KEY`.
+Otherwise, agent-p will automatically look for the license key in your environment in the variable `NEW_RELIC_LICENSE_KEY`. Note that what is in the config file always takes precedent.
 
 ```sh
 export NEW_RELIC_LICENSE_KEY=<your key here>
@@ -140,4 +157,4 @@ The following tools can help you troubleshoot:
 
 ## Output
 
-Each job will result in a `data.csv` file being created in that job directory. It is titled, and should be importable into any software that can handle csv data: excel, sheets, tableau, pandas, etc. This tool collects cpu usage as a percentage of the total available cpu time, memory usage in Kb, disk write volume in Mb, and network writes in Kb. We do not collect network reads due to traffic from the traffic driver being sent over the network, making it unreliable to measure. Data is collected every second, and outliers are not removed from the data pool. If you want to generate summary statistics, it's recommended that you remove outliers first. Due to the non-random collection interval, this data may not be well suited for making hypothesis based on summary statistics.
+Each job will result in a `data.csv` file being created in that job directory. It is titled, and should be importable into any software that can handle csv data: excel, sheets, tableau, pandas, etc. This tool collects cpu usage as a percentage of the total available cpu time, memory usage in Kb, disk write volume in Mb, and network writes in Kb. We do not collect network reads due to traffic from the traffic driver being sent over the network, making it unreliable to measure. Data is collected every second, and outliers are not removed from the data pool. If you want to generate summary statistics, it's recommended that you remove outliers first. Use the summary statistic setting to collect random data, since this is less likely to be biased.
