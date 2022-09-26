@@ -1,7 +1,7 @@
 package app
 
 // TODO
-func GraphComparitiveTimeseriesData()
+func GraphComparitiveTimeseriesData() {}
 
 // TODO
-func GraphComparitiveSummaryStatisticsData()
+func GraphComparitiveSummaryStatisticsData() {}
